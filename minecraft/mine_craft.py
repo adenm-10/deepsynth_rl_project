@@ -2,6 +2,16 @@ import numpy as np
 import random
 from collections import defaultdict as ddict
 
+# Objects required per task (excludes neutral/obstacles which are always kept)
+TASK_OBJECTS = {
+    1: {4, 2, 7},           # iron → wood → toolshed
+    2: {3, 7},               # grass → toolshed
+    3: {2, 3, 4, 7},         # wood → grass → iron → toolshed
+    4: {2, 6},               # wood → workbench
+    5: {3, 6},               # grass → workbench
+    6: {4, 2, 6},            # iron → wood → workbench
+    9: {2},                  # just wood
+}
 
 class MineCraft():
     # actions: right, up, left, down
@@ -18,37 +28,45 @@ class MineCraft():
     toolshed = 7
     obstacles = 8
 
-    def __init__(self, world=2, vanishing=1):
-        self._world = world  # select the environment
-        self._vanishing = vanishing  # set 1 when objects disappear upon visit and 0 otherwise
+    def __init__(self, world=2, vanishing=1, task_num=None, only_needed_objects=False):
+        self._world = world
+        self._vanishing = vanishing
+        self._task_num = task_num
+        self._only_needed_objects = only_needed_objects
         self._x_limit, self._y_limit = self.layout(world).shape
 
     def layout(self, world):
 
         if world == 1:
-            # world_1 layout
-            world_1 = np.ones([10, 10], dtype=int)
-            world_1[0][0] = world_1[4][5] = world_1[8][1] = world_1[8][7] = self.grass
-            world_1[2][2] = world_1[7][3] = world_1[5][7] = world_1[9][9] = self.wood
-            world_1[0][3] = world_1[4][0] = world_1[6][8] = world_1[9][4] = self.iron
-            world_1[6][1] = world_1[6][5] = world_1[4][9] = self.workbench
-            world_1[2][4] = world_1[9][0] = world_1[7][7] = self.toolshed
-            world_1[0][5] = world_1[1][5] = self.obstacles
-            world_1[2][5:10] = [self.obstacles] * 5
-            world_1[0][7] = self.gold
-            return world_1
+            grid = np.ones([10, 10], dtype=int)
+            grid[0][0] = grid[4][5] = grid[8][1] = grid[8][7] = self.grass
+            grid[2][2] = grid[7][3] = grid[5][7] = grid[9][9] = self.wood
+            grid[0][3] = grid[4][0] = grid[6][8] = grid[9][4] = self.iron
+            grid[6][1] = grid[6][5] = grid[4][9] = self.workbench
+            grid[2][4] = grid[9][0] = grid[7][7] = self.toolshed
+            grid[0][5] = grid[1][5] = self.obstacles
+            grid[2][5:10] = [self.obstacles] * 5
+            grid[0][7] = self.gold
         elif world == 2:
-            # world_2 layout
-            world_2 = np.ones([10, 10], dtype=int)
-            world_2[0][0] = world_2[4][5] = world_2[8][1] = world_2[8][7] = self.grass
-            world_2[2][2] = world_2[7][3] = world_2[5][7] = world_2[9][9] = self.wood
-            world_2[0][3] = world_2[4][0] = world_2[6][8] = world_2[9][4] = self.iron
-            world_2[6][1] = self.workbench
-            world_2[9][0] = self.toolshed
-            world_2[0][5] = world_2[1][5] = self.obstacles
-            world_2[2][5:10] = [self.obstacles] * 5
-            world_2[0][7] = self.gold
-            return world_2
+            grid = np.ones([10, 10], dtype=int)
+            grid[0][0] = grid[4][5] = grid[8][1] = grid[8][7] = self.grass
+            grid[2][2] = grid[7][3] = grid[5][7] = grid[9][9] = self.wood
+            grid[0][3] = grid[4][0] = grid[6][8] = grid[9][4] = self.iron
+            grid[6][1] = self.workbench
+            grid[9][0] = self.toolshed
+            grid[0][5] = grid[1][5] = self.obstacles
+            grid[2][5:10] = [self.obstacles] * 5
+            grid[0][7] = self.gold
+        else:
+            raise ValueError(f"Unknown world: {world}")
+
+        # Filter: replace irrelevant objects with neutral
+        if self._only_needed_objects and self._task_num in TASK_OBJECTS:
+            allowed = TASK_OBJECTS[self._task_num] | {self.neutral, self.obstacles}
+            mask = ~np.isin(grid, list(allowed))
+            grid[mask] = self.neutral
+
+        return grid
 
     def initialiser(self):
         current_layout = self.layout(self._world)

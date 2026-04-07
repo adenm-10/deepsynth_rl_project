@@ -1,4 +1,4 @@
-// ******************************************** Iteration:137
+// ******************************************** Iteration:0
 
 #include<stdio.h>
 #include<stdbool.h>
@@ -7,13 +7,13 @@ void main()
 {
     uint8_t event_seq_length = 3;
    uint8_t num_input = 1;
-   uint8_t event_seq[1][3] = {{4,4,5}};
-   uint8_t num_states = 2;
-   uint8_t t[7][3];
+   uint8_t event_seq[1][3] = {{1,3,3}};
+   uint8_t num_states = 5;
+   uint8_t t[11][3];
    uint8_t count=0;
-   uint8_t t_gen[4][3] = {{1,1,2},{2,2,2},{2,3,2},{2,4,2}};
+   uint8_t t_gen[8][3] = {{1,1,3},{1,1,5},{2,2,3},{3,2,2},{3,2,3},{3,3,2},{5,2,3},{5,3,2}};
 
-   for(uint8_t i=0;i<4;i++)             
+   for(uint8_t i=0;i<8;i++)             
         {                                                                       
             t[count][0] = t_gen[i][0];                                          
             t[count][1] = t_gen[i][1];                                          
@@ -42,8 +42,8 @@ void main()
         }                                                                           
     }
 
-   bool in[2][5] = {false};                                               
-    bool o[2][5] = {false};                                                        
+   bool in[5][3] = {false};                                               
+    bool o[5][3] = {false};                                                        
                                                                                     
     for (uint8_t i=0;i<count;i++)                                                    
     {                                                                               
@@ -54,16 +54,6 @@ void main()
     bool wrong_transition = false;                                                      
     for (uint8_t i=0; i<num_states;i++)                                                     
     {                                                                               
-       if (in[i][ 0] && (o[i][3] || o[i][4]))
-               wrong_transition = true;
-   if (in[i][ 1] && (o[i][4]))
-               wrong_transition = true;
-   if (in[i][ 2] && (o[i][3] || o[i][4]))
-               wrong_transition = true;
-   if (in[i][ 3] && (o[i][2]))
-               wrong_transition = true;
-   if (in[i][ 4] && (o[i][1] || o[i][2] || o[i][3] || o[i][4]))
-               wrong_transition = true;
-   }
+       }
    assert(wrong_transition != false);
 }

@@ -524,7 +524,7 @@ def nfa_to_dfa(nfa, full_event_id):
 
         return to_be_merged
 
-    print("\n\nConverting NFA to DFA..........")
+    # print("\n\nConverting NFA to DFA..........")
 
     states = [x[0] for x in nfa]
     [states.append(x[2]) for x in nfa]
@@ -747,10 +747,10 @@ def make_model(full_events, model, var, hyperparams, num_states, input_dict, sta
         (f, trace, vis) = nfa_traverse(final_model_gen,input_dict_store['event_id'], vis ,True)
 
         if f:
-            print(colored("\nAll behaviors present",'green'))
+            # print(colored("\nAll behaviors present",'green'))
             final_model = final_model_gen
-            print(colored("Final Generated model",'green'))
-            print(colored(final_model,'green'))
+            # print(colored("Final Generated model",'green'))
+            # print(colored(final_model,'green'))
             # print(colored("Number of states: " + str(num_states),'green'))
             # print(colored("Number of transitions: " + str(len(final_model)),'green'))
             return final_model, var, input_dict_store, num_states
@@ -806,7 +806,7 @@ def convert_to_dfa_plot(full_events, model_gen, input_dict, num_states, hyperpar
 
     while(True):
         vis = [1]
-        print("NFA states: ",num_states)
+        # print("NFA states: ",num_states)
         end_time = time.time()
         # print('\n\nTime taken: ' + str(end_time - start_time))
 
@@ -819,20 +819,20 @@ def convert_to_dfa_plot(full_events, model_gen, input_dict, num_states, hyperpar
         (f, trace, vis) = nfa_traverse(final_model_gen,input_dict_store['event_id'], vis ,True)
 
         if f:
-            print(colored("\nAll behaviors present",'green'))
+            # print(colored("\nAll behaviors present",'green'))
             vis = list(np.unique(vis))
             final_model = [x for x in final_model_gen if x[0] in vis and x[2] in vis]
             # print(colored("States not visited",'green'))
             # print(colored([s+1 for s in range(num_states) if s+1 not in vis],'green'))
-            print(colored("Final Generated model",'green'))
+            # print(colored("Final Generated model",'green'))
             # print(colored(final_model,'green'))
 
-            model_with_event = [[x[0],input_dict['event_uniq'][x[1]-1],x[2]] for x in final_model]
-            print(colored(model_with_event,'green'))
+            # model_with_event = [[x[0],input_dict['event_uniq'][x[1]-1],x[2]] for x in final_model]
+            # print(colored(model_with_event,'green'))
 
             # print(colored("Number of states: " + str(len(vis)),'green'))
             # print(colored("Number of transitions: " + str(len(final_model)),'green'))
-            end_time = time.time()
+            # end_time = time.time()
             # print('\n\nTime taken: ' + str(end_time - start_time))
             # plot_model(final_model,input_dict_store,num_states,hyperparams,do_dfa != 'y',iter_num)
             return final_model, var, input_dict_store, num_states

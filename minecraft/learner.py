@@ -16,84 +16,21 @@ from synth.synth_wrapper import dfa_update
 from synth.synth_wrapper import get_next_state
 
 # Hyper-parameters
-task_num = 3
+task_num = 1
 discount_factor = 0.95
 exploration_episode_number = 200
 max_it_number = 200
 episode_number = 100
 DFA_UPDATE_FREQ = 5
-prop = keras.optimizers.RMSprop(learning_rate=0.01)
+# prop = keras.optimizers.RMSprop(lr=0.01)
 ###
 
-def evaluate_policy_nfq(models, env, task_num, num_episodes=50, max_steps=200):
-    successes = 0
-    all_steps = []
-
-    for k in range(num_episodes):
-        state_2d = list(env.initialiser())
-        layout = env.layout(env._world).copy()
-        automaton_state = 1
-        trace = []
-        steps = max_steps
-
-        print(f"Eval Episode: {k}")
-
-        for step in range(max_steps):
-            # print(f"Eval Step: {step}")
-        
-            # Select action: argmax_a Q(x, y, a) from the active module
-            model_idx = min(automaton_state - 1, len(models) - 1)
-            q_vals = []
-            for a in range(env.num_actions):
-                inp = np.array([[state_2d[0], state_2d[1], a]], dtype=np.float32)
-                q_vals.append(models[model_idx].predict(inp, verbose=0)[0, 0])
-            action = int(np.argmax(q_vals))
-
-            next_2d = list(env.take_action(state_2d, action))
-            label = layout[next_2d[0]][next_2d[1]]
-
-            if label != env.neutral:
-                trace.append(label)
-                # Update automaton state using ground-truth automaton
-                automaton_state = env.automaton(task_num, automaton_state, label)
-
-            # Update layout for vanishing objects
-            if env._vanishing == 1 and \
-                    layout[state_2d[0]][state_2d[1]] != env.workbench and \
-                    layout[state_2d[0]][state_2d[1]] != env.toolshed:
-                layout[state_2d[0]][state_2d[1]] = env.neutral
-
-            # Check task completion
-            if env.reward(task_num, np.array(trace)) > 9:
-                successes += 1
-                steps = step
-                break
-
-            state_2d = next_2d
-
-        all_steps.append(steps)
-
-    success_rate = successes / num_episodes
-    avg_steps = sum(all_steps) / len(all_steps)
-    # Average steps only for successful episodes
-    success_steps = [s for s in all_steps if s < max_steps]
-    avg_success_steps = sum(success_steps) / len(success_steps) if success_steps else float('inf')
-
-    print(f"Success rate: {success_rate:.2%} ({successes}/{num_episodes})")
-    print(f"Avg steps (all): {avg_steps:.1f}")
-    print(f"Avg steps (successes only): {avg_success_steps:.1f}")
-
-    return success_rate, avg_steps, avg_success_steps
-
-
-def run_exploration_nfq(mine_craft_env, task_num):
-    """Exploration + DFA synthesis. Returns sar_dict, NFQ_dict, processed_dfa, input_dict.
-       Code is identical to the original __main__ exploration loop."""
-
+if __name__ == '__main__':
     MAIN_NFQ = keras.Sequential([
         keras.layers.Dense(128, input_dim=3, activation=tf.nn.relu),
         keras.layers.Dense(128, activation=tf.nn.relu),
-        keras.layers.Dense(1, activation='sigmoid')])
+        # keras.layers.Dense(1, activation='sigmoid')])
+        keras.layers.Dense(1)])
     MAIN_NFQ.compile(loss='mean_squared_error',
                      metrics=['mean_squared_error'],
                      optimizer='Adam')
@@ -109,33 +46,57 @@ def run_exploration_nfq(mine_craft_env, task_num):
     num_states, var, input_dict, hyperparams = dfa_init()
     synth_iter_num = 0
 
+    #############################################################
+    # Exploration
+    #############################################################
+    mine_craft_env = MineCraft()
     sar_dict = ddict(list)
     set_of_episode_traces = []
+
+    # Iterate over all episodes
     for ep_n in range(exploration_episode_number):
         current_state = list(mine_craft_env.initialiser()) + [1]
         current_layout = mine_craft_env.layout(mine_craft_env._world).copy()
         iter_number = 0
         episode_trace = ['start']
         start_time = time.time()
-        while mine_craft_env.reward(task_num, np.array(episode_trace[1:])) < 9 \
-                and iter_number < max_it_number:
+
+        # Iterate over timesteps in episode (while episode not done)
+        while (mine_craft_env.reward(task_num, np.array(episode_trace[1:])) < 9) and (iter_number < max_it_number):
+
+            # Take random action and get next env and dfa state
             action = random.randint(0, mine_craft_env.num_actions - 1)
             next_state_2d = list(mine_craft_env.take_action(current_state[0:2], action))
             next_state_label = current_layout[next_state_2d[0]][next_state_2d[1]]
+            
+            # if the label of the next state is an object / not default
             if next_state_label != mine_craft_env.neutral:  # ignoring the neutral label
                 episode_trace.append(next_state_label)
-                # ### SYNTH ### #
+                
+                #############################################################
+                # Synthesize
+                #############################################################
+    
                 old_dfa_states = dfa_states.copy()
-                # # SYNTH updates the automaton here:
+                
+                # if:
+                #   Havent seen a lot of items so far in the episode (<3)
+                #   The DFA has gotten stale
+                #   The episode produced a symbol the DFA doesn't know about
+                #   The DFA had no valid transition for some event in the trace
                 if (len(episode_trace) < 3) or \
-                        (iter_number % DFA_UPDATE_FREQ == 0) or \
-                        (get_next_state(episode_trace, input_dict['event_uniq'], processed_dfa) == -1) or \
-                        (get_next_state(episode_trace, input_dict['event_uniq'], processed_dfa) == []):
+                   (iter_number % DFA_UPDATE_FREQ == 0) or \
+                   (get_next_state(episode_trace, input_dict['event_uniq'], processed_dfa) == -1) or \
+                   (get_next_state(episode_trace, input_dict['event_uniq'], processed_dfa) == []):
+                    
+                    # Get list of DFA state at each timestep going back to start, with start represented multiple times (?)
                     trace = []
                     set_of_episode_traces.append(episode_trace)
                     for x in set_of_episode_traces:
                         trace = trace + x
-                    trace = trace + ['start']
+                    trace = trace + ['start'] 
+
+                    # update the DFA given the updated trace(s)
                     num_states, processed_dfa, dfa_model, nfa_model, model_gen, var, input_dict = dfa_update(
                         trace, num_states,
                         dfa_model,
@@ -150,7 +111,11 @@ def run_exploration_nfq(mine_craft_env, task_num):
                     synth_iter_num = synth_iter_num + 1
                     set_of_episode_traces = [episode_trace]
 
+                #############################################################
                 # Create NFQ modules if necessary
+                #############################################################
+
+                # If new DFA state, make new network to navigate it
                 new_dfa_states = list(set(dfa_states) - set(old_dfa_states))
                 if new_dfa_states:
                     for i in new_dfa_states:
@@ -162,151 +127,170 @@ def run_exploration_nfq(mine_craft_env, task_num):
                         NFQ_dict[i].compile(loss='mean_squared_error',
                                             metrics=['mean_squared_error'],
                                             optimizer='Adam')
-                # Determine next dfa state
+                
+                # Determine next dfa state given updated dfa
                 next_automaton_state = get_next_state(episode_trace, input_dict['event_uniq'], processed_dfa)
             else:
+                # else, dfa state stays the same
                 next_automaton_state = current_state[-1]
+
+            # if objects dissapear upon visit and not at workbench or toolshed, update current env state to be neutral
             if mine_craft_env._vanishing == 1 and \
                     current_layout[current_state[0]][current_state[1]] != mine_craft_env.workbench and \
                     current_layout[current_state[0]][current_state[1]] != mine_craft_env.toolshed:
                 current_layout[current_state[0]][current_state[1]] = mine_craft_env.neutral
             next_state_2d.append(next_automaton_state)
+           
+            # transition = 
+            #   current env x, env y, dfa state (indexes 0, 1, 2 respectively)
+            #   action
+            #   next env x, env y, dfa state
             sar = current_state + \
                   [action] + \
                   next_state_2d + \
                   [mine_craft_env.reward(task_num, np.array(episode_trace[1:]))]
+            
+            # sar_dict indexed by dfa state
             sar_dict[current_state[-1]].append(sar)
             current_state = next_state_2d
             set_of_episode_traces.append(episode_trace)
 
             iter_number += 1
 
-    return sar_dict, NFQ_dict, processed_dfa, input_dict
-
-
-def refine_sars_nfq(sar_dict, NFQ_dict):
-    """Deduplicate and downsample. Returns sars list, models list, rew index.
-       Code is identical to the original __main__ refinement block."""
-
     sars = []
     models = []
     normal_refinary = []
     rew = None
+
+    # for each dfa state
     for i in range(len(list(sar_dict.keys()))):
+
+        # add a list all unique transitions from exploration that occured while in the current (i) dfa state 
+        # sars is thus indexed by dfa state
         sars.append(np.unique(np.array(sar_dict[list(sar_dict.keys())[i]]), axis=0))
+        
+        # if dfa state wasnt the final dfa state, add to refinery, else note the index of last DFA state
         if sum(sars[i][:, 7] > 9) == 0:
             normal_refinary.append(i)
         else:
             rew = i
+
+        # add NFQ network of current dfa state to models, to be indexed with the same numerical index as dfa states in sars
         models.append(NFQ_dict[list(sar_dict.keys())[i]])
 
+    history = ddict(list)
+
+    # if end of episode was never reached
     if rew is None:
         print('\n please consider tuning exploration parameters, e.g. increasing exploration_episode_number and '
               'max_it_number \n')
-        return sars, models, rew
 
-    # refine sars
+    #############################################################
+    # Refine SARS
+    #############################################################
     exp_size = 1500
+
+    # for each non-termninal automaton:
+    #   if there are more experiences than 1500 for current automaton state
+    #       randomly delete n = (len(transitions) - exp_size) samples 
     for i in normal_refinary:
         if len(sars[i]) > exp_size:
             sars[i] = np.delete(sars[i], random.sample(range(0, len(sars[i])), len(sars[i]) - exp_size), axis=0)
+    
+    # get list of all rewards in terminal dfa state exp buffer 
     reward_column = sars[rew][:, 7]
+
+    # find where terminals rewards are in terminal dfa state buffer
     indx_rew = np.where([reward_column > 9])
+
+    # get list of all terminal rewards in terminal dfa state
     high_reward_sar_rew = sars[rew][indx_rew[1]]
-    sars[rew] = np.delete(sars[rew], random.sample(range(0, len(sars[rew])), len(sars[rew]) - 10 + len(indx_rew[1])),
-                          axis=0)
+
+    # randomly remove most of the low/mixed-reward transitions, 
+    #      keeping only 10 - len(indx_rew[1]) of them (since it deletes len - 10 + len(high_reward) samples)
+    sars[rew] = np.delete(sars[rew], random.sample(range(0, len(sars[rew])), len(sars[rew]) - 10 + len(indx_rew[1])),axis=0)
+    
+    # Appends all the high-reward transitions back in.
     sars[rew] = np.vstack((sars[rew], high_reward_sar_rew))
 
-    for i, s in enumerate(sars):
-        print(f"Automaton state {i}: {len(s)} transitions")
-    print(f"Total: {sum(len(s) for s in sars)} transitions")
 
-    return sars, models, rew
+    #############################################################
+    # Initialize Models
+    #############################################################
 
-
-def train_nfq(sars, models, episode_number=100, eval_freq=None,
-              eval_fn=None):
-    """NFQ training loop. Returns models, utility, history.
-       If eval_freq and eval_fn are provided, calls eval_fn every eval_freq epochs.
-       eval_fn signature: eval_fn(models) -> (success_rate, avg_steps, avg_succ_steps)
-       Code inside the loop is identical to the original __main__ training block."""
-
-    history = ddict(list)
-    eval_results = {"epochs": [], "sr": [], "steps": []}
-
-    # initialization
+    # for each dfa state's NFQ model:
+    #   do a warm-start fit on (state_x, state_y, action) -> reward for 3 epochs
     for i in range(len(models)):
         models[i].fit(np.hstack((sars[i][:, 0:2], sars[i][:, 3:4])), sars[i][:, 7:8], epochs=3, verbose=0)
 
+    #############################################################
+    # Train Models on Offline Data
+    #############################################################
     init_state = np.array([4, 4, 1])
     utility = []
+
+    # for each training episode:
     for i in range(episode_number):
         print(int(i / episode_number * 100), '%')
+
+        # estimate utility of initial state (4,4) under dfa state 0's model
+        #   by taking max Q over all 4 actions
         neighs = []
         for l in range(4):
             neigh_inputs = []
             neigh_inputs = np.append([4, 4], l).reshape(1, 3)
-            neighs.append(models[0].predict(neigh_inputs, verbose=0).item())
-
+            neighs.append(models[0].predict(neigh_inputs))
         utility.append(max(neighs))
+
+        # for each dfa state in reverse order (terminal -> initial):
         for j in range(len(models) - 1, -1, -1):
             target = np.zeros(len(sars[j]))
+
+            # for each transition in the current dfa state's experience buffer:
             for k in range(len(sars[j])):
                 neigh = []
+
+                # compute Q-values for all 4 actions from the next grid state
+                #   using the model for the next dfa state (sars[j][k, 6])
+                #   clamped to valid model index range
                 for l in range(4):
                     neigh_input = []
                     neigh_input = np.append(sars[j][k, 4:6], l).reshape(1, 3)
-                    neigh.append(models[min(int(sars[j][k, 6]) - 1, len(models) - 1)].predict(neigh_input, verbose=0).item())
+                    neigh.append(models[min(int(sars[j][k, 6]) - 1, len(models) - 1)].predict(neigh_input).item())
+
+                # fitted Q-iteration target: r + gamma * max_a' Q(s', a')
                 target[k] = sars[j][k, 7] + discount_factor * max(neigh)
 
+            # refit the current dfa state's NFQ model on (state_x, state_y, action) -> target
             history_j = models[j].fit(np.hstack((sars[j][:, 0:2], sars[j][:, 3:4])),
                                       target.reshape(len(np.hstack((sars[j][:, 0:2], sars[j][:, 3:4]))), 1),
                                       epochs=3,
                                       verbose=0)
             history[j].append(history_j)
 
-        # Periodic evaluation callback
-        if eval_freq and eval_fn and (i + 1) % eval_freq == 0:
-            sr, avg_all, avg_succ = eval_fn(models)
-            eval_results["epochs"].append(i + 1)
-            eval_results["sr"].append(sr)
-            eval_results["steps"].append(avg_succ)
-            print(f"    [NFQ] epoch {i+1}: success={sr:.0%}, steps={avg_succ:.1f}")
+    #############################################################
+    # Plot and Save
+    #############################################################
 
-    return models, utility, history, eval_results
-
-
-def main():
-    mine_craft_env = MineCraft()
-
-    # Exploration
-    sar_dict, NFQ_dict, processed_dfa, input_dict = run_exploration_nfq(mine_craft_env, task_num)
-
-    # Refinement
-    sars, models, rew = refine_sars_nfq(sar_dict, NFQ_dict)
-    if rew is None:
-        return
-
-    # Training
-    models, utility, history, _ = train_nfq(sars, models, episode_number)
-
-    # Save
+    # create history directory if it doesn't exist
     file_path = os.path.dirname(os.path.abspath(__file__))
     history_path = os.path.join(file_path, 'history')
     if not os.path.exists(history_path):
         os.mkdir(history_path)
+
+    # save experience buffers and utility curve
     pkl.dump(sars, open(os.path.join(history_path, 'sars.p'), 'wb'))
     pkl.dump(utility, open(os.path.join(history_path, 'utility.p'), 'wb'))
+
+    # for each dfa state's model (reverse order):
+    #   save the keras model as .h5
+    #   save per-episode training history as pickle
     for i in range(len(models) - 1, -1, -1):
         models[i].save(os.path.join(history_path, 'model_' + str(i + 1) + '.h5'))
         for j in range(episode_number):
             pkl.dump(history[i][j].history,
                      open(os.path.join(history_path, 'history_' + str(i + 1) + '_' + str(j + 1) + '.p'), "wb"))
+
+    # plot utility of initial state over training episodes (convergence check)
     plt.plot(np.vstack(utility).tolist())
     plt.show()
-
-    evaluate_policy_nfq(models, mine_craft_env, task_num, num_episodes=50, max_steps=200)
-
-
-if __name__ == '__main__':
-    main()

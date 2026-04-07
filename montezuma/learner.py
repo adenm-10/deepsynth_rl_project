@@ -168,9 +168,9 @@ class ReplayBuffer:
 
         self.actions = np.empty(self.size, dtype=np.int32)
         self.rewards = np.empty(self.size, dtype=np.float32)
-        self.dfa_states = np.empty(self.size, dtype=np.int)
         self.frames = np.empty((self.size, self.input_shape[0], self.input_shape[1]), dtype=np.uint8)
-        self.terminal_flags = np.empty(self.size, dtype=np.bool)
+        self.dfa_states = np.empty(self.size, dtype=np.intp)
+        self.terminal_flags = np.empty(self.size, dtype=np.bool_)
         self.priorities = np.zeros(self.size, dtype=np.float32)
 
         self.use_per = use_per
@@ -606,7 +606,6 @@ if __name__ == "__main__":
     nfa_model = []
     dfa_model = []
     num_states, var, input_dict, hyperparams = dfa_init()
-    print("initialise")
     synth_iter_num = 0
 
     # Main loop
@@ -642,6 +641,7 @@ if __name__ == "__main__":
                         # Image Processing sub-unit which can be replaced with any image segmentation/object detection algorithm
                         old_obj_set = episode_detected_objects.copy()
                         old_trace_length = len(episode_trace)
+
                         # unique color map observation
                         observation = np.sum(new_obs, axis=2)
                         if subarray_detector(observation[93:134, 76:83], np.array(agent_unique)):
@@ -675,7 +675,7 @@ if __name__ == "__main__":
                                     (get_next_state(episode_trace, input_dict['event_uniq'], processed_dfa) == -1) or \
                                     (get_next_state(episode_trace, input_dict['event_uniq'], processed_dfa) == []):
                                 trace = []
-                                set_of_episode_traces.append(episode_trace)
+                                set_of_episode_traces.append(episode_trace.copy())
                                 for x in set_of_episode_traces:
                                     trace = trace + x
                                 trace = trace + ['start']
@@ -691,7 +691,7 @@ if __name__ == "__main__":
                                 dfa_states = list(set([dfa_transitions[0] for dfa_transitions in processed_dfa] +
                                                       [dfa_transitions[2] for dfa_transitions in processed_dfa]))
                                 synth_iter_num = synth_iter_num + 1
-                                set_of_episode_traces = [episode_trace]
+                                set_of_episode_traces = [episode_trace.copy()]
 
                             # Create DQN modules if necessary
                             new_dfa_states = list(set(dfa_states) - set(old_dfa_states))
@@ -731,7 +731,8 @@ if __name__ == "__main__":
                             # Add experience to replay memory
                             active_agent.add_experience(action=action,
                                                         frame=processed_frame[:, :, 0],
-                                                        reward=reward, clip_reward=CLIP_REWARD, dfa_state=next_dfa_state,
+                                                        reward=reward, clip_reward=CLIP_REWARD, 
+                                                        dfa_state=next_dfa_state,
                                                         terminal=life_lost)
 
                             # Update agents
@@ -779,80 +780,80 @@ if __name__ == "__main__":
                             f'Game number: {str(len(rewards)).zfill(6)}  Frame number: {str(frame_number).zfill(8)}  Average reward: {np.mean(rewards[-10:]):0.1f}  Time taken: {(time.time() - start_time):.1f}s')
 
                 # Evaluation every `FRAMES_BETWEEN_EVAL` frames for tensorboard
-                terminal = True
-                eval_rewards = []
-                evaluate_frame_number = 0
-                active_agent = main_agent
-                current_dfa_state = 1
-                episode_detected_objects = []
-                episode_trace = ['start']
+                # terminal = True
+                # eval_rewards = []
+                # evaluate_frame_number = 0
+                # active_agent = main_agent
+                # current_dfa_state = 1
+                # episode_detected_objects = []
+                # episode_trace = ['start']
 
-                for _ in range(EVAL_LENGTH):
-                    if terminal:
-                        game_wrapper.reset(evaluation=True)
-                        life_lost = False
-                        episode_reward_sum = 0
-                        terminal = False
+                # for _ in range(EVAL_LENGTH):
+                #     if terminal:
+                #         game_wrapper.reset(evaluation=True)
+                #         life_lost = False
+                #         episode_reward_sum = 0
+                #         terminal = False
 
-                    active_agent.get_action(frame_number, game_wrapper.state, evaluation=True)
+                #     active_agent.get_action(frame_number, game_wrapper.state, evaluation=True)
 
-                    # Step action
-                    _, reward, terminal, life_lost, new_obs = game_wrapper.step(action)
-                    evaluate_frame_number += 1
+                #     # Step action
+                #     _, reward, terminal, life_lost, new_obs = game_wrapper.step(action)
+                #     evaluate_frame_number += 1
 
-                    # Image Processing
-                    old_obj_set = episode_detected_objects.copy()
-                    # unique color map observation
-                    observation = np.sum(new_obs, axis=2)
-                    if subarray_detector(observation[93:134, 76:83], np.array(agent_unique)):
-                        episode_detected_objects.append('middle_ladder')
-                        episode_trace.append('middle_ladder')
-                    elif subarray_detector(observation[96:134, 110:115], np.array(agent_unique)):
-                        episode_detected_objects.append('rope')
-                        episode_trace.append('rope')
-                    elif subarray_detector(observation[136:179, 132:139], np.array(agent_unique)):
-                        episode_detected_objects.append('right_ladder')
-                        episode_trace.append('right_ladder')
-                    elif subarray_detector(observation[136:179, 20:27], np.array(agent_unique)):
-                        episode_detected_objects.append('left_ladder')
-                        episode_trace.append('left_ladder')
-                    elif subarray_detector(observation[99:106, 13:19], np.array(agent_unique)):
-                        episode_detected_objects.append('key')
-                        episode_trace.append('key')
-                    elif subarray_detector(observation[50:92, 20:24], np.array(agent_unique)):
-                        episode_detected_objects.append('door')
-                        episode_trace.append('door')
-                    elif subarray_detector(observation[50:92, 136:140], np.array(agent_unique)):
-                        episode_detected_objects.append('door')
-                        episode_trace.append('door')
-                    new_obj_set = np.unique(episode_detected_objects).tolist()
-                    # determine next dfa state
-                    if frame_number > MIN_REPLAY_BUFFER_SIZE:
-                        next_dfa_state = get_next_state(episode_trace, input_dict['event_uniq'], processed_dfa)
-                    else:
-                        next_dfa_state = current_dfa_state
-                    reward = reward + MU * intrinsic_reward(new_obj_set, old_obj_set)
-                    episode_detected_objects = new_obj_set
+                #     # Image Processing
+                #     old_obj_set = episode_detected_objects.copy()
+                #     # unique color map observation
+                #     observation = np.sum(new_obs, axis=2)
+                #     if subarray_detector(observation[93:134, 76:83], np.array(agent_unique)):
+                #         episode_detected_objects.append('middle_ladder')
+                #         episode_trace.append('middle_ladder')
+                #     elif subarray_detector(observation[96:134, 110:115], np.array(agent_unique)):
+                #         episode_detected_objects.append('rope')
+                #         episode_trace.append('rope')
+                #     elif subarray_detector(observation[136:179, 132:139], np.array(agent_unique)):
+                #         episode_detected_objects.append('right_ladder')
+                #         episode_trace.append('right_ladder')
+                #     elif subarray_detector(observation[136:179, 20:27], np.array(agent_unique)):
+                #         episode_detected_objects.append('left_ladder')
+                #         episode_trace.append('left_ladder')
+                #     elif subarray_detector(observation[99:106, 13:19], np.array(agent_unique)):
+                #         episode_detected_objects.append('key')
+                #         episode_trace.append('key')
+                #     elif subarray_detector(observation[50:92, 20:24], np.array(agent_unique)):
+                #         episode_detected_objects.append('door')
+                #         episode_trace.append('door')
+                #     elif subarray_detector(observation[50:92, 136:140], np.array(agent_unique)):
+                #         episode_detected_objects.append('door')
+                #         episode_trace.append('door')
+                #     new_obj_set = np.unique(episode_detected_objects).tolist()
+                #     # determine next dfa state
+                #     if frame_number > MIN_REPLAY_BUFFER_SIZE:
+                #         next_dfa_state = get_next_state(episode_trace, input_dict['event_uniq'], processed_dfa)
+                #     else:
+                #         next_dfa_state = current_dfa_state
+                #     reward = reward + MU * intrinsic_reward(new_obj_set, old_obj_set)
+                #     episode_detected_objects = new_obj_set
 
-                    episode_reward_sum += reward
-                    if next_dfa_state:
-                        active_agent = agent_dict[next_dfa_state]
+                #     episode_reward_sum += reward
+                #     if next_dfa_state:
+                #         active_agent = agent_dict[next_dfa_state]
 
-                    # On game-over
-                    if terminal:
-                        eval_rewards.append(episode_reward_sum)
+                #     # On game-over
+                #     if terminal:
+                #         eval_rewards.append(episode_reward_sum)
 
-                if len(eval_rewards) > 0:
-                    final_score = np.mean(eval_rewards)
-                else:
-                    # In case the game is longer than the number of frames allowed
-                    final_score = episode_reward_sum
+                # if len(eval_rewards) > 0:
+                #     final_score = np.mean(eval_rewards)
+                # else:
+                #     # In case the game is longer than the number of frames allowed
+                #     final_score = episode_reward_sum
 
-                # Print score and write to tensorboard
-                print('Evaluation score:', final_score)
-                if WRITE_TENSORBOARD:
-                    tf.summary.scalar('Evaluation score', final_score, frame_number)
-                    writer.flush()
+                # # Print score and write to tensorboard
+                # print('Evaluation score:', final_score)
+                # if WRITE_TENSORBOARD:
+                #     tf.summary.scalar('Evaluation score', final_score, frame_number)
+                #     writer.flush()
 
                 # Save model
                 if len(rewards) > 300 and SAVE_PATH is not None:
