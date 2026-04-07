@@ -450,9 +450,10 @@ def main(cfg: DictConfig):
                     # Create new modules (warm-started)
                     new_dfa_states = list(set(dfa_states) - set(old_dfa_states))
                     if new_dfa_states:
-                        root_dqn = DQN_dict.get(1, None)
+                        root_dqn = DQN_dict.get(1, None) if algo.warm_start_modules else None
                         if algo.verbose:
-                            tqdm.write(f"[NEW MODULES] Warm-starting: {new_dfa_states}")
+                            mode = "warm-start" if algo.warm_start_modules else "random-init"
+                            tqdm.write(f"[NEW MODULES] {mode}: {new_dfa_states}")
                         for i in new_dfa_states:
                             DQN_dict[i] = make_dqn(cfg, source_dqn=root_dqn)
                             buffer_dict[i] = PrioritizedReplayBuffer(

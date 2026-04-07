@@ -40,3 +40,5 @@ eval_log_routing: true
 
 # Logging
 verbose: true
+
+warm_start_modules: true
