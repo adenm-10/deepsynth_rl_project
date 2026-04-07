@@ -1,0 +1,107 @@
+# Architecture
+hidden_dim: 32
+learning_rate: 5e-4
+
+# Training loop
+total_frames: 50000
+max_it_number: 200
+batch_size: 64
+mem_size: 25000
+min_replay_buffer_size: 50
+min_replay_buffer_size_child: 64
+update_freq: 2
+target_update_freq: 200
+tau: 0.005
+discount_factor: 0.95
+
+# Prioritized replay
+priority_scale: 0.6
+use_per: true
+
+# Reward shaping
+mu: 0.5
+step_penalty: -0.01
+clip_reward: false
+
+# Bootstrap target clipping
+target_clip_low: -10.0
+target_clip_high: 20.0
+
+# Epsilon schedule
+eps_initial: 1.0
+eps_final: 0.1
+eps_final_frame: 0.05
+eps_annealing_steps: 70000
+
+# Evaluation
+frames_between_eval: 5000
+eval_episodes: 10
+eval_log_routing: true
+
+# Logging
+verbose: true
+
+
+
+#### working hyperparams
+
+# task_num = 2
+# DISCOUNT_FACTOR = 0.95
+# DFA_UPDATE_FREQ_BASE = 5
+# DFA_UPDATE_FREQ_MAX = 500
+# DFA_ANNEAL_GROWTH = 1.5
+# DFA_ANNEAL_EVERY = 10
+# DFA_ANNEAL_WARMUP_FRAMES = 5000
+
+# # DQN architecture
+# STATE_DIM = 2
+# ACTION_DIM = 4
+# HIDDEN_DIM = 32
+# LEARNING_RATE = 3e-4
+
+# # Training
+# TOTAL_FRAMES = 200_000
+# MAX_IT_NUMBER = 250
+# BATCH_SIZE = 64
+# MEM_SIZE = 25_000
+# MIN_REPLAY_BUFFER_SIZE = 50
+# MIN_DFA_FRAMES = 2000
+# UPDATE_FREQ = 2
+# TARGET_UPDATE_FREQ = 200
+# PRIORITY_SCALE = 0.6
+# USE_PER = True
+# MU = 0.5
+# STEP_PENALTY = -0.01
+# CLIP_REWARD = False
+
+# # Bootstrap target clipping
+# TARGET_CLIP_LOW = -10.0
+# TARGET_CLIP_HIGH = 20.0
+
+# # Epsilon schedule
+# EPS_INITIAL = 1.0
+# EPS_FINAL = 0.1
+# EPS_FINAL_FRAME = 0.05
+# EPS_ANNEALING_STEPS = 100_000
+
+# # Eval
+# FRAMES_BETWEEN_EVAL = 5000
+# EVAL_EPISODES = 10
+
+# # NFA synthesis budget floor
+# MIN_NUM_STATES = 5
+
+# # Environment
+# ONLY_NEEDED_OBJECTS = True
+
+# SAVE_PATH = None
+
+# # Grid dims for normalization
+# GRID_X = 10
+# GRID_Y = 10
+
+# # Logging
+# VERBOSE = True
+
+# DFA_FREEZE_BEFORE_EVAL = 2000  # frames before eval where DFA is frozen
+# EVAL_LOG_ROUTING = True  # per-episode DFA routing diagnostics

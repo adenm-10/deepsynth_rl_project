@@ -1,0 +1,5 @@
+task_num: 6
+state_dim: 2
+action_dim: 4
+grid_x: 10
+grid_y: 10

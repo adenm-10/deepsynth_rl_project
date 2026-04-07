@@ -1,0 +1,8 @@
+# @package _global_
+defaults:
+  - override /task: task6
+  - override /env: default
+  - override /algo: t6_baseline
+  - override /dfa: default
+
+experiment_name: task6_baseline

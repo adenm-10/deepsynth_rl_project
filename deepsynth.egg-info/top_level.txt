@@ -1,6 +1,0 @@
-baselines
-frozenlake
-minecraft
-montezuma
-slp
-synth

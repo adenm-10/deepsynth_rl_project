@@ -1,0 +1,42 @@
+# Architecture
+hidden_dim: 32
+learning_rate: 5e-4
+
+# Training loop
+total_frames: 250000
+max_it_number: 300
+batch_size: 64
+mem_size: 25000
+min_replay_buffer_size: 50
+min_replay_buffer_size_child: 64
+update_freq: 2
+target_update_freq: 200
+tau: 0.005
+discount_factor: 0.95
+
+# Prioritized replay
+priority_scale: 0.6
+use_per: true
+
+# Reward shaping
+mu: 0.5
+step_penalty: -0.01
+clip_reward: false
+
+# Bootstrap target clipping
+target_clip_low: -10.0
+target_clip_high: 20.0
+
+# Epsilon schedule
+eps_initial: 1.0
+eps_final: 0.1
+eps_final_frame: 0.05
+eps_annealing_steps: 150000
+
+# Evaluation
+frames_between_eval: 5000
+eval_episodes: 10
+eval_log_routing: true
+
+# Logging
+verbose: true

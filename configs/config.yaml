@@ -1,0 +1,20 @@
+# ──────────────────────────────────────────────────────────────
+# Hydra base config — composes from groups
+# ──────────────────────────────────────────────────────────────
+
+defaults:
+  - task: task2
+  - env: default
+  - algo: baseline
+  - dfa: default
+  - _self_                    # self takes lowest priority (groups override)
+
+experiment_name: unnamed
+
+# Hydra output directory pattern
+hydra:
+  run:
+    dir: experiments/${experiment_name}/${now:%Y%m%d_%H%M%S}
+  sweep:
+    dir: experiments/multirun/${now:%Y%m%d_%H%M%S}
+    subdir: ${experiment_name}

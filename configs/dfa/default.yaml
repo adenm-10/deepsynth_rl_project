@@ -1,0 +1,8 @@
+min_dfa_frames: 2000
+dfa_update_freq_base: 5
+dfa_update_freq_max: 500
+dfa_anneal_growth: 1.5
+dfa_anneal_every: 10
+dfa_anneal_warmup_frames: 5000
+dfa_freeze_before_eval: 2000
+min_num_states: 5
