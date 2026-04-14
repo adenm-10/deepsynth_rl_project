@@ -6,13 +6,13 @@ learning_rate: 5e-4
 total_frames: 25000
 max_it_number: 100
 batch_size: 64
-mem_size: 25000
+mem_size: 15000
 min_replay_buffer_size: 50
 min_replay_buffer_size_child: 64
 update_freq: 2
 target_update_freq: 200
 tau: 0.005
-discount_factor: 0.95
+discount_factor: 0.99
 
 # Prioritized replay
 priority_scale: 0.6
@@ -31,7 +31,7 @@ target_clip_high: 20.0
 eps_initial: 1.0
 eps_final: 0.1
 eps_final_frame: 0.05
-eps_annealing_steps: 70000
+eps_annealing_steps: 10000
 
 # Evaluation
 frames_between_eval: 5000
@@ -41,4 +41,8 @@ eval_log_routing: true
 # Logging
 verbose: true
 
-warm_start_modules: true
+warm_start_modules: false
+
+double_dqn: true
+dueling_dqn: true
+per: true

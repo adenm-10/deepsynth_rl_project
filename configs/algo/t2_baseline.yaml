@@ -6,7 +6,7 @@ learning_rate: 5e-4
 total_frames: 50000
 max_it_number: 200
 batch_size: 64
-mem_size: 25000
+mem_size: 15000
 min_replay_buffer_size: 50
 min_replay_buffer_size_child: 64
 update_freq: 2
@@ -41,7 +41,11 @@ eval_log_routing: true
 # Logging
 verbose: true
 
-warm_start_modules: true
+warm_start_modules: false
+
+double_dqn: true
+dueling_dqn: true
+per: true
 
 
 #### working hyperparams

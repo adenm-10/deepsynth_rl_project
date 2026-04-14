@@ -1,44 +1,29 @@
-# Architecture
+# configs/algo/t6_baseline.yaml
 hidden_dim: 32
-learning_rate: 5e-4
-
-# Training loop
-total_frames: 250000
+learning_rate: 0.00025         # keep — was working
+total_frames: 500000           # keep — was reaching 80% by 350K
 max_it_number: 300
 batch_size: 64
-mem_size: 25000
+mem_size: 150000
 min_replay_buffer_size: 50
 min_replay_buffer_size_child: 64
 update_freq: 2
 target_update_freq: 200
 tau: 0.005
-discount_factor: 0.95
-
-# Prioritized replay
+discount_factor: 0.99          # keep — target clipping controls the range
 priority_scale: 0.6
 use_per: true
-
-# Reward shaping
-mu: 0.5
-step_penalty: -0.01
+mu: 1                          # keep — stronger intrinsic reward was helping
+step_penalty: -0.1             # keep — was providing gradient signal
 clip_reward: false
-
-# Bootstrap target clipping
-target_clip_low: -10.0
-target_clip_high: 20.0
-
-# Epsilon schedule
+target_clip_low: -10.0         # keep — this prevented the loss explosion
+target_clip_high: 20.0         # keep
 eps_initial: 1.0
 eps_final: 0.1
-eps_final_frame: 0.05
+eps_final_frame: 0.1
 eps_annealing_steps: 150000
-
-# Evaluation
 frames_between_eval: 5000
 eval_episodes: 10
 eval_log_routing: true
-
-# Logging
 verbose: true
-
 warm_start_modules: true

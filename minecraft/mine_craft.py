@@ -115,7 +115,10 @@ class MineCraft():
         
         check_task_num, _ = self.task_extractor(traces)
         if task_num == check_task_num:
-            return round(10 + random.random() / 100, 2)
+            if task_num == 6:
+                return round(30 + random.random() / 100, 2)
+            else:
+                return round(10 + random.random() / 100, 2)
         else:
             return round(random.random() / 100, 2)
 

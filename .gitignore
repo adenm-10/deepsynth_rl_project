@@ -4,5 +4,10 @@
 *.h5
 *.p
 *.png
+*.pdf
+*.zip
 
 experiments/*
+checkpoint_saves/*
+AuthorKit26-1/*
+.vscode/*

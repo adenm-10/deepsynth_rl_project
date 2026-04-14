@@ -126,17 +126,20 @@ class DQN:
         return float(loss.numpy()), np.abs(td_errors.numpy())
 
     def update_target(self):
-        self.target_net.set_weights(
-            [self.tau * w + (1.0 - self.tau) * tw
-             for w, tw in zip(self.q_net.get_weights(), self.target_net.get_weights())]
-        )
+        if self.double_dqn:
+            self.target_net.set_weights(
+                [self.tau * w + (1.0 - self.tau) * tw
+                for w, tw in zip(self.q_net.get_weights(), self.target_net.get_weights())]
+            )
 
     def hard_update_target(self):
-        self.target_net.set_weights(self.q_net.get_weights())
+        if self.double_dqn:
+            self.target_net.set_weights(self.q_net.get_weights())
 
     def soft_update_target(self):
-        for target_param, online_param in zip(self.target_net.variables, self.q_net.variables):
-            target_param.assign(self.tau * online_param + (1 - self.tau) * target_param)
+        if self.double_dqn:
+            for target_param, online_param in zip(self.target_net.variables, self.q_net.variables):
+                target_param.assign(self.tau * online_param + (1 - self.tau) * target_param)
 
     @tf.function
     def _train_step_with_targets(self, s, a, targets, weights):

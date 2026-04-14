@@ -58,7 +58,8 @@ def make_dqn(cfg, source_dqn=None):
     algo = cfg.algo
     dqn = DQN(
         gamma=algo.discount_factor, eps=0.0, tau=algo.tau, lr=algo.learning_rate,
-        double_dqn=True, dueling_dqn=True,
+        double_dqn=algo.get('double_dqn', True),
+        dueling_dqn=algo.get('dueling_dqn', True),
         state_dim=cfg.task.state_dim, action_dim=cfg.task.action_dim,
         hidden_dim=algo.hidden_dim,
     )
@@ -128,19 +129,26 @@ def learn(dfa_key, dqn_dict, buffer_dict, frame_number, n_actions, cfg):
             dfa_groups[t.next_dfa_state].append(k)
 
     for next_dfa, group_idxs in dfa_groups.items():
-        if next_dfa not in dqn_dict:
-            continue
-        next_dqn = dqn_dict[next_dfa]
-        s_primes = np.array([batch[k].s_prime for k in group_idxs], dtype=np.float32)
+            if next_dfa not in dqn_dict:
+                continue
+            next_dqn = dqn_dict[next_dfa]
+            s_primes = np.array([batch[k].s_prime for k in group_idxs], dtype=np.float32)
 
-        q_online = next_dqn.q_net(s_primes, training=False)
-        best_actions = tf.argmax(q_online, axis=1, output_type=tf.int32)
-        q_target = next_dqn.target_net(s_primes, training=False)
-        idx_pairs = tf.stack([tf.range(len(group_idxs)), best_actions], axis=1)
-        next_q = tf.gather_nd(q_target, idx_pairs).numpy()
+            if next_dqn.double_dqn:
+                # Double DQN: online net selects action, target net evaluates
+                q_online = next_dqn.q_net(s_primes, training=False)
+                best_actions = tf.argmax(q_online, axis=1, output_type=tf.int32)
+                q_eval = next_dqn.target_net(s_primes, training=False)
+            else:
+                # No target net: q_net does both
+                q_eval = next_dqn.q_net(s_primes, training=False)
+                best_actions = tf.argmax(q_eval, axis=1, output_type=tf.int32)
 
-        for j, k in enumerate(group_idxs):
-            targets[k] = rewards_b[k] + algo.discount_factor * next_q[j]
+            idx_pairs = tf.stack([tf.range(len(group_idxs)), best_actions], axis=1)
+            next_q = tf.gather_nd(q_eval, idx_pairs).numpy()
+
+            for j, k in enumerate(group_idxs):
+                targets[k] = rewards_b[k] + algo.discount_factor * next_q[j]
 
     targets = np.clip(targets, algo.target_clip_low, algo.target_clip_high)
     loss, td_errors = dqn_dict[dfa_key].update_with_targets(batch, targets, weights)
@@ -503,7 +511,10 @@ def main(cfg: DictConfig):
                             loss_list.append(loss)
                             DQN_dict[ag].soft_update_target()
 
-                    current_dfa_state = next_dfa_state
+                    if not dfa_result_invalid(next_dfa_state) and next_dfa_state in DQN_dict:
+                        current_dfa_state = next_dfa_state
+                    else:
+                        current_dfa_state = 1
                 else:
                     # Before MIN_DFA_FRAMES
                     reward = (env_reward
@@ -521,7 +532,7 @@ def main(cfg: DictConfig):
                 pbar.update(frame_number - prev_frame)
 
                 # Periodic evaluation
-                if frame_number >= next_eval_frame:
+                if frame_number >= next_eval_frame and frame_number % 100 == 0:
                     # Module diagnostics
                     if algo.verbose:
                         parts = []
@@ -536,6 +547,16 @@ def main(cfg: DictConfig):
                         input_dict, cfg)
                     eval_history.append((frame_number, eval_results))
                     next_eval_frame += algo.frames_between_eval
+
+                    save_plots(
+                        rewards=rewards,
+                        episode_lengths=episode_lengths,
+                        loss_list=loss_list,
+                        eval_history=eval_history,
+                        dfa_change_log=dfa_change_log,
+                        cfg=cfg,
+                        plots_dir=plots_path,
+                    )
 
                     tqdm.write(
                         f'[EVAL @ {frame_number}]  '
