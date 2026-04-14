@@ -1,43 +1,19 @@
-Note: the current codebase is under code refactoring and the final package will be released upon AAAI proceedings publication.  
+# DeepSynth Re-implementation: Online Modular DQN for Automatic Task Segmentation
 
-# DeepSynth
-DeepSynth is a general method for effective training of deep Reinforcement Learning (RL) agents when the reward is sparse and non-Markovian, but at the same time progress towards the reward requires achieving an unknown sequence of high-level objectives. The framework uses human-interpretable automata, synthesised from trace data generated through exploration of the environment by the deep RL agent to uncover this sequential structure.
+A re-implementation and extended analysis of the [DeepSynth](https://arxiv.org/pdf/1911.10244.pdf) algorithm (Hasanbeig et al., 2021), adapted for online training in the Minecraft crafting environment. This project was completed as a final project for CS 5180: Reinforcement Learning at Northeastern University.
 
-## Publications
-* Hasanbeig, M. , Jeppu, N. Y., Abate, A., Melham, T., Kroening, D., "DeepSynth: Automata Synthesis for Automatic Task Segmentation in Deep Reinforcement Learning", AAAI Conference on Artificial Intelligence, 2021. [[PDF]](https://arxiv.org/pdf/1911.10244.pdf)
+## Overview
 
-## Installation
+DeepSynth addresses sparse, non-Markovian RL tasks by automatically synthesizing a minimal DFA from exploration traces and using it to decompose the task into Markovian sub-goals, each handled by a dedicated deep RL module. The original paper uses offline Neural Fitted Q-Iteration (NFQ) for its Minecraft experiments.
 
-Navigate to the folder you would like to install DeepSynth in, and clone this repository with its Python dependencies by:
-~~~
-git clone https://github.com/grockious/deepsynth.git
-cd deepsynth
-pip3 install .
-~~~
-DeepSynth requires [CBMC](https://www.cprover.org/cbmc/) for automata synthesis, please follow the installation instructions on [Trace2Model](https://github.com/natasha-jeppu/Trace2Model).
+This project replaces the NFQ modules with **online Dueling Double DQN agents with Prioritized Experience Replay**, enabling evaluation of actual task completion rather than just Q-value convergence. Additional modifications include task-relevant object filtering, a per-step penalty, and intrinsic reward coefficient tuning.
 
-## Usage
-#### Training an RL agent:
-In each benchmark directory run `learner.py`. For instance,
-```
-python3 montezuma/learner.py
-```
+### Key Findings
 
-## Reference
-Please use this bibtex entry if you want to cite this repository in your publication:
+- Tasks with 1–2 sub-goals converge reliably under the online setup
+- Tasks with 3+ sub-goals exhibit compounding instability across the modular architecture — no single design choice is responsible
+- Irrelevant objects in the environment pollute traces and cause the SAT synthesizer to produce bloated automata, degrading sample efficiency proportionally
 
-```
-@misc{deepsynth_repo,
-  author = {Hasanbeig, Mohammadhosein and Jeppu, Natasha Yogananda and Abate, Alessandro and Melham, Tom and Kroening, Daniel},
-  title = {DeepSynth: Automata Synthesis for Automatic Task Segmentation in Deep Reinforcement Learning Code Repository},
-  year = {2021},
-  publisher = {GitHub},
-  journal = {GitHub repository},
-  howpublished = {\url{https://github.com/grockious/deepsynth}},
-}
-```
+## Original Paper
 
-## License
-This project is licensed under the terms of the [MIT License](/LICENSE)
-
-
+Hasanbeig, M., Jeppu, N. Y., Abate, A., Melham, T., Kroening, D., "DeepSynth: Automata Synthesis for Automatic Task Segmentation in Deep Reinforcement Learning", AAAI Conference on Artificial Intelligence, 2021. [[PDF]](https://arxiv.org/pdf/1911.10244.pdf)
